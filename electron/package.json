@@ -1,0 +1,80 @@
+{
+  "name": "blog-publisher",
+  "version": "1.0.0",
+  "description": "BlogPublisher — AI 블로그 생성 + 네이버 자동 발행",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:next\" \"npm run dev:electron\"",
+    "dev:next": "cd ../frontend && npm run dev",
+    "dev:electron": "tsc && electron .",
+    "build": "tsc && npm run build:next && npm run build:electron",
+    "build:next": "cd ../frontend && npm run build",
+    "build:electron": "electron-builder",
+    "build:mac": "npm run build -- --mac",
+    "build:win": "npm run build -- --win"
+  },
+  "build": {
+    "appId": "com.blogpublisher.app",
+    "productName": "BlogPublisher",
+    "directories": {
+      "output": "../release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../frontend/.next",
+        "to": "frontend/.next"
+      },
+      {
+        "from": "../frontend/public",
+        "to": "frontend/public"
+      },
+      {
+        "from": "../frontend/package.json",
+        "to": "frontend/package.json"
+      },
+      {
+        "from": "../frontend/node_modules",
+        "to": "frontend/node_modules"
+      },
+      {
+        "from": "../publisher",
+        "to": "publisher",
+        "filter": [
+          "**/*",
+          "!__pycache__/**",
+          "!*.pyc",
+          "!storage/**",
+          "!.env"
+        ]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "../publisher/resources/icon.icns",
+      "target": ["dmg"]
+    },
+    "win": {
+      "icon": "../publisher/resources/icon.ico",
+      "target": ["nsis"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "../publisher/resources/icon.ico"
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "concurrently": "^8.0.0",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "electron-updater": "^6.0.0"
+  }
+}
