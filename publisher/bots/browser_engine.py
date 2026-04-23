@@ -192,6 +192,22 @@ class BrowserEngine:
         except Exception:
             return False
 
+    async def _warmup_blog_cookies(self) -> None:
+        """블로그 관련 쿠키를 선제 생성한다.
+
+        blog.naver.com/MyBlog.naver 는 blog.naver.com 도메인 쿠키가 있어야
+        사용자의 실제 블로그로 정상 리다이렉트된다. 신규 프로필(첫 로그인)은
+        이 쿠키가 없어 감지가 실패한다. 로그인 성공 직후 블로그 홈을 1회
+        방문해 쿠키를 확보한다. 실패해도 발행 흐름은 계속 진행한다.
+        """
+        try:
+            print("  [워밍업] blog.naver.com 쿠키 생성 중...")
+            await self.page.goto("https://blog.naver.com/", wait_until="domcontentloaded")
+            await asyncio.sleep(2)
+            print("  [워밍업] ✓ 완료")
+        except Exception as e:
+            print(f"  [워밍업] ⚠ 실패 (무시하고 진행): {e}")
+
     async def auto_login(
         self,
         naver_id: str | None = None,
@@ -218,6 +234,7 @@ class BrowserEngine:
         # 이미 로그인된 상태면 (리다이렉트로 로그인 페이지를 벗어남)
         if "nidlogin" not in page.url and "login" not in page.url.lower():
             print("  [로그인] ✓ 이미 로그인되어 있습니다.")
+            await self._warmup_blog_cookies()
             return True
 
         print("  [로그인] 자동 로그인 시작...")
@@ -335,6 +352,7 @@ class BrowserEngine:
             url = page.url
             if "nidlogin" not in url and "login" not in url.lower():
                 print(f"  [로그인] ✓ 로그인 성공! → {url[:60]}")
+                await self._warmup_blog_cookies()
                 return True
 
             # CAPTCHA 체크
@@ -345,6 +363,7 @@ class BrowserEngine:
                     await asyncio.sleep(1)
                     if "nidlogin" not in page.url:
                         print("  [로그인] ✓ CAPTCHA 해결 후 로그인 성공!")
+                        await self._warmup_blog_cookies()
                         return True
                 await capture_failure(
                     page,
@@ -399,6 +418,7 @@ class BrowserEngine:
         # 이미 로그인 상태면 바로 성공
         if "nidlogin" not in page.url and "login" not in page.url.lower():
             print("  [수동로그인] ✓ 이미 로그인되어 있습니다.")
+            await self._warmup_blog_cookies()
             return True
 
         # 크롬 자동완성 덮어쓰기 — 지정된 ID를 ID 칸에 입력
@@ -437,6 +457,7 @@ class BrowserEngine:
                     print(f"  [수동로그인] ✓ 로그인 완료 감지! → {url[:60]}")
                     # 쿠키가 저장되도록 잠시 대기
                     await asyncio.sleep(2)
+                    await self._warmup_blog_cookies()
                     return True
             except Exception:
                 # 페이지 이동 중 일시적 에러
@@ -467,7 +488,7 @@ class BrowserEngine:
             "naver", "blog", "",
         }
 
-        print(f"  [에디터] 블로그 ID 감지 중...")
+        print(f"  [에디터] 블로그 ID 감지 중... (입력값={naver_id})")
 
         # 방법 1: MyBlog.naver → 로그인된 사용자의 블로그로 리다이렉트
         await page.goto("https://blog.naver.com/MyBlog.naver", wait_until="domcontentloaded")
@@ -475,11 +496,31 @@ class BrowserEngine:
         await self._dismiss_blog_popups()
 
         current_url = page.url
+        print(f"  [에디터] MyBlog.naver 후 URL = {current_url}")
         match = re.search(r"blog\.naver\.com/([A-Za-z0-9_]+)", current_url)
         if match and match.group(1) not in INVALID_IDS:
             detected_id = match.group(1)
             print(f"  [에디터] 블로그 ID 감지 (MyBlog): {detected_id}")
             return detected_id
+
+        # 방법 1-B: admin.blog.naver.com → 관리자 페이지는 blog_id 필수로 포함
+        try:
+            await page.goto("https://admin.blog.naver.com/", wait_until="domcontentloaded")
+            await asyncio.sleep(3)
+            admin_url = page.url
+            print(f"  [에디터] admin.blog.naver.com 후 URL = {admin_url}")
+            match = re.search(r"[?&]blogId=([A-Za-z0-9_]+)", admin_url)
+            if match and match.group(1) not in INVALID_IDS:
+                detected_id = match.group(1)
+                print(f"  [에디터] 블로그 ID 감지 (admin URL): {detected_id}")
+                return detected_id
+            match = re.search(r"blog\.naver\.com/([A-Za-z0-9_]+)", admin_url)
+            if match and match.group(1) not in INVALID_IDS:
+                detected_id = match.group(1)
+                print(f"  [에디터] 블로그 ID 감지 (admin redirect): {detected_id}")
+                return detected_id
+        except Exception as e:
+            print(f"  [에디터] admin 감지 실패: {e}")
 
         # 방법 2: 블로그 페이지에서 프로필 링크 추출
         try:
@@ -494,7 +535,20 @@ class BrowserEngine:
         except Exception:
             pass
 
-        # 방법 3: 제공된 ID를 그대로 사용
+        # 방법 3: 쿠키에서 추출 (NID_BLOG_ID 등)
+        try:
+            cookies = await self._context.cookies("https://blog.naver.com/")
+            for c in cookies:
+                print(f"  [에디터] cookie {c['name']} = {str(c.get('value', ''))[:40]}")
+                if c["name"] in ("NID_BLOG_ID", "BLOG_ID", "blog_id"):
+                    v = c.get("value", "")
+                    if v and v not in INVALID_IDS:
+                        print(f"  [에디터] 블로그 ID 감지 (쿠키 {c['name']}): {v}")
+                        return v
+        except Exception as e:
+            print(f"  [에디터] 쿠키 감지 실패: {e}")
+
+        # 방법 4: 제공된 ID를 그대로 사용
         print(f"  [에디터] 블로그 ID 자동 감지 실패, 입력값 사용: {naver_id}")
         return naver_id
 

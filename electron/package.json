@@ -52,17 +52,14 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
-      "icon": "../publisher/resources/icon.icns",
       "target": ["dmg"]
     },
     "win": {
-      "icon": "../publisher/resources/icon.ico",
       "target": ["nsis"]
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "installerIcon": "../publisher/resources/icon.ico"
+      "allowToChangeInstallationDirectory": true
     },
     "publish": {
       "provider": "github",
