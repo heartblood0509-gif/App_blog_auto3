@@ -34,6 +34,7 @@ electron/dist/
 publisher/dist/
 publisher/build/
 *.spec
+!publisher/BlogPublisher.spec
 
 # === 사용자 데이터 (네이버 계정 DB, 이미지 등) ===
 publisher/storage/

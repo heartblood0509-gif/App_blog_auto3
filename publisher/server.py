@@ -32,13 +32,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — Electron(localhost:3000) + Vercel 허용
+# CORS — Electron(BlogPublisher 전용 포트 3847) + 개발 모드 포트 허용
 cors_origins = [
     "http://localhost:3000",
     "http://localhost:3001",
     "http://localhost:3002",
+    "http://localhost:3847",  # BlogPublisher Electron 프로덕션 포트
     "http://127.0.0.1:3000",
     "http://127.0.0.1:3001",
+    "http://127.0.0.1:3847",
 ]
 # 추가 origin이 있으면 포함
 if settings.CORS_ORIGINS:

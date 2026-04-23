@@ -3,21 +3,16 @@ import { GoogleGenAI } from "@google/genai";
 let client: GoogleGenAI | null = null;
 
 export function getGeminiClient(apiKey?: string): GoogleGenAI {
-  // If a client-provided API key is given, always create a fresh instance
+  // 사용자가 개별 키를 제공하면 항상 새 인스턴스 생성
   if (apiKey) {
     return new GoogleGenAI({ apiKey });
   }
 
-  // 사용자 모드에서는 클라이언트 API 키가 필수
-  const isUserMode = process.env.NEXT_PUBLIC_APP_MODE === "user";
-  if (isUserMode) {
-    throw new Error("API 키를 설정해주세요. 헤더의 열쇠 아이콘을 클릭하여 Gemini API 키를 입력해주세요.");
-  }
-
+  // env 키 fallback (개발 모드나 내부용 배포에서만 존재)
   if (!client) {
     const envKey = process.env.GEMINI_API_KEY;
     if (!envKey) {
-      throw new Error("GEMINI_API_KEY가 설정되지 않았습니다.");
+      throw new Error("Gemini API 키가 설정되지 않았습니다. 화면 상단 우측의 🔑 열쇠 아이콘을 눌러 본인의 API 키를 입력해주세요.");
     }
     client = new GoogleGenAI({ apiKey: envKey });
   }

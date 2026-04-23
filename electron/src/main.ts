@@ -10,6 +10,7 @@ import * as path from "path";
 import { PythonManager } from "./python-manager";
 import { startNextServer, getNextPort } from "./next-server";
 import { generateFingerprint } from "./license-manager";
+import { setupAutoUpdater } from "./updater";
 
 let mainWindow: BrowserWindow | null = null;
 let pythonManager: PythonManager | null = null;
@@ -73,6 +74,10 @@ ipcMain.handle("open-external", (_e, url: string) => shell.openExternal(url));
 app.whenReady().then(async () => {
   await startServers();
   createWindow();
+
+  if (!isDev && mainWindow) {
+    setupAutoUpdater(mainWindow);
+  }
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {

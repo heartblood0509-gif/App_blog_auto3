@@ -9,7 +9,8 @@ import * as path from "path";
 import * as http from "http";
 import { app } from "electron";
 
-const NEXT_PORT = 3000;
+// BlogPublisher 전용 포트 (지인 PC의 다른 서비스와 충돌 방지용으로 특이한 포트 사용)
+const NEXT_PORT = 3847;
 let nextProcess: ChildProcess | null = null;
 
 export function getNextPort(): number {
@@ -45,19 +46,30 @@ export async function startNextServer(): Promise<void> {
       if (msg) console.error(`[Next.js:ERR] ${msg}`);
     });
   } else {
-    // 프로덕션: extraResources에서 next start 실행
+    // 프로덕션: Next.js standalone 서버 실행
+    // standalone 모드는 server.js 단독 실행 + 최소 node_modules 번들
     const frontendDir = path.join(process.resourcesPath, "frontend");
-    const npxPath = process.platform === "win32" ? "npx.cmd" : "npx";
+    const serverPath = path.join(frontendDir, "server.js");
 
-    nextProcess = spawn(npxPath, ["next", "start", "-p", String(NEXT_PORT)], {
+    nextProcess = spawn(process.execPath, [serverPath], {
       cwd: frontendDir,
       stdio: ["ignore", "pipe", "pipe"],
-      shell: true,
-      env: { ...process.env, NODE_ENV: "production" },
+      env: {
+        ...process.env,
+        NODE_ENV: "production",
+        PORT: String(NEXT_PORT),
+        HOSTNAME: "127.0.0.1",
+        ELECTRON_RUN_AS_NODE: "1",
+      },
     });
 
     nextProcess.stdout?.on("data", (data: Buffer) => {
       console.log(`[Next.js] ${data.toString().trim()}`);
+    });
+
+    nextProcess.stderr?.on("data", (data: Buffer) => {
+      const msg = data.toString().trim();
+      if (msg) console.error(`[Next.js:ERR] ${msg}`);
     });
   }
 

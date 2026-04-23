@@ -21,7 +21,9 @@ export function ApiKeySettings() {
     }
   }, []);
 
-  if (!appConfig.isUser) return null;
+  // 데스크톱 앱과 사용자 모드 웹 양쪽에서 표시 (회사 내부용 웹에서만 숨김)
+  const shouldShowKeyUI = appConfig.mode === "desktop" || appConfig.isUser;
+  if (!shouldShowKeyUI) return null;
 
   const handleSave = () => {
     const trimmed = apiKey.trim();

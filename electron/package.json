@@ -25,20 +25,16 @@
     ],
     "extraResources": [
       {
-        "from": "../frontend/.next",
-        "to": "frontend/.next"
+        "from": "../frontend/.next/standalone",
+        "to": "frontend"
+      },
+      {
+        "from": "../frontend/.next/static",
+        "to": "frontend/.next/static"
       },
       {
         "from": "../frontend/public",
         "to": "frontend/public"
-      },
-      {
-        "from": "../frontend/package.json",
-        "to": "frontend/package.json"
-      },
-      {
-        "from": "../frontend/node_modules",
-        "to": "frontend/node_modules"
       },
       {
         "from": "../publisher",
@@ -48,7 +44,9 @@
           "!__pycache__/**",
           "!*.pyc",
           "!storage/**",
-          "!.env"
+          "!.env",
+          "!venv/**",
+          "!.venv/**"
         ]
       }
     ],
@@ -65,6 +63,12 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "installerIcon": "../publisher/resources/icon.ico"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "heartblood0509-gif",
+      "repo": "App_blog_auto3",
+      "releaseType": "release"
     }
   },
   "devDependencies": {
