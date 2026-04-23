@@ -128,20 +128,24 @@ class NaverBlogPublisher:
         closed_any = False
 
         # 취소(새 글로 시작) 우선 — 확인을 누르면 임시글이 복원돼 덮어쓰기 어려움
+        # has-text 매칭은 반드시 팝업 컨테이너 scope로 제한.
+        # 전역 `button:has-text("취소")`는 툴바의 "취소선(strikethrough)" 버튼을
+        # 오매칭하여 본문 입력 시 취소선이 토글되는 간헐 버그를 유발했음.
         cancel_selectors = [
             '.se-popup-alert-confirm button.se-popup-button-cancel',
             '.se-popup-alert button.se-popup-button-cancel',
             'button.se-popup-button-cancel',
             '.se-popup-container button:has-text("취소")',
             '.se-popup-alert button:has-text("취소")',
-            'button:has-text("취소")',
-            'button:has-text("아니오")',
-            'button:has-text("아니요")',
+            '.se-popup-container button:has-text("아니오")',
+            '.se-popup-alert button:has-text("아니오")',
+            '.se-popup-container button:has-text("아니요")',
+            '.se-popup-alert button:has-text("아니요")',
         ]
         confirm_selectors = [
             '.se-popup-alert button:has-text("확인")',
             'button.se-popup-button-confirm',
-            'button:has-text("확인")',
+            '.se-popup-container button:has-text("확인")',
         ]
         close_selectors = [
             'button[aria-label="닫기"]',
@@ -436,23 +440,40 @@ class NaverBlogPublisher:
         2. execCommand로 커서 위치 서식 제거
         3. 기존 입력된 텍스트의 취소선 관련 태그·스타일 직접 제거
         """
-        # 1단계: 툴바의 취소선 버튼 active 상태 확인 → 클릭으로 끄기
-        try:
-            strike_btn = await frame.query_selector(
-                'button[data-name="strikethrough"], '
-                'button.se-toolbar-button-strikethrough'
-            )
-            if strike_btn:
-                is_active = await strike_btn.evaluate(
-                    "el => el.classList.contains('se-toolbar-button-active') || "
-                    "el.getAttribute('aria-pressed') === 'true'"
-                )
-                if is_active:
-                    await strike_btn.click()
-                    print("    [서식] 취소선 툴바 버튼 OFF")
-                    await asyncio.sleep(0.3)
-        except Exception:
-            pass
+        # 1단계: 툴바의 취소선 버튼 active 상태 확인 → 클릭으로 끄기.
+        # 클릭 후에도 active가 남아있으면 최대 2회까지 재클릭해 확실히 OFF 보장.
+        strike_selector = (
+            'button[data-name="strikethrough"], '
+            'button.se-toolbar-button-strikethrough'
+        )
+        strike_state_js = """
+            () => {
+                const btn = document.querySelector(
+                    'button[data-name="strikethrough"], button.se-toolbar-button-strikethrough'
+                );
+                if (!btn) return false;
+                return (
+                    btn.classList.contains('se-toolbar-button-active') ||
+                    btn.getAttribute('aria-pressed') === 'true' ||
+                    btn.closest('.se-toolbar-tool-active') !== null
+                );
+            }
+        """
+        for attempt in range(3):
+            try:
+                state_on = await frame.evaluate(strike_state_js)
+                if not state_on:
+                    if attempt > 0:
+                        print("    [서식] 취소선 OFF 확인")
+                    break
+                strike_btn = await frame.query_selector(strike_selector)
+                if not strike_btn:
+                    break
+                await strike_btn.click()
+                print(f"    [서식] 취소선 토글 OFF 시도 {attempt + 1}")
+                await asyncio.sleep(0.3)
+            except Exception:
+                break
 
         # 2단계: execCommand로 서식 상태 초기화 (iframe 컨텍스트)
         try:
@@ -500,6 +521,8 @@ class NaverBlogPublisher:
 
         참조 블로그 패턴: 소제목(볼드) → 빈줄 → 이미지 → 빈줄 → 본문 2~3줄 → 빈줄 반복
         """
+        # 직전 _dismiss_popups 호출 후 툴바 상태가 안정화될 시간을 확보.
+        await asyncio.sleep(0.3)
         # 이전 세션 잔여 서식(취소선·볼드·색상 등) 토글 상태 초기화
         # 여러 번 실패한 발행으로 SmartEditor 툴바 상태가 오염돼
         # 본문 전체에 취소선이 적용되는 증상 방어
