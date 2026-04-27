@@ -19,7 +19,9 @@ type LicenseStatus = "loading" | "no-key" | "validating" | "active" | "error";
 const isDev = !process.env.NEXT_PUBLIC_KEYGEN_ACCOUNT_ID;
 
 export function LicenseGuard({ children }: LicenseGuardProps) {
-  const [status, setStatus] = useState<LicenseStatus>(isDev ? "active" : "loading");
+  const [status, setStatus] = useState<LicenseStatus>(
+    isDev ? "active" : "loading"
+  );
   const [errorMessage, setErrorMessage] = useState("");
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -29,6 +31,7 @@ export function LicenseGuard({ children }: LicenseGuardProps) {
     return () => {
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function checkLicense() {

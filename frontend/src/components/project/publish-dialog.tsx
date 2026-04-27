@@ -301,7 +301,14 @@ export function PublishDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(newOpen) => {
+        // 발행 진행 중에는 닫기 불가 (SSE 끊김 방지)
+        if (!newOpen && step === "publishing") return;
+        onOpenChange(newOpen);
+      }}
+    >
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
@@ -640,6 +647,10 @@ export function PublishDialog({
                 </p>
               </>
             )}
+
+            <p className="text-xs text-center text-muted-foreground pt-2">
+              발행 중입니다. 완료될 때까지 기다려주세요.
+            </p>
           </div>
         )}
 

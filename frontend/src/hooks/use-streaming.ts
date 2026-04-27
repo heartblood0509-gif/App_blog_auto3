@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import { getStoredApiKey } from "@/lib/api-key";
+import { sanitizeGeneratedContent } from "@/lib/sanitize-content";
 
 interface UseStreamingOptions {
   onComplete?: (fullText: string) => void;
@@ -63,7 +64,11 @@ export function useStreaming(options?: UseStreamingOptions) {
           setData(fullText);
         }
 
-        options?.onComplete?.(fullText);
+        const cleanedText = sanitizeGeneratedContent(fullText);
+        if (cleanedText !== fullText) {
+          setData(cleanedText);
+        }
+        options?.onComplete?.(cleanedText);
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") {
           // User aborted, not an error

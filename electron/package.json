@@ -52,10 +52,14 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
-      "target": ["dmg"]
+      "target": [
+        "dmg"
+      ]
     },
     "win": {
-      "target": ["nsis"]
+      "target": [
+        "nsis"
+      ]
     },
     "nsis": {
       "oneClick": false,
@@ -71,7 +75,7 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "concurrently": "^8.0.0",
-    "electron": "^33.0.0",
+    "electron": "^33.4.11",
     "electron-builder": "^25.0.0",
     "typescript": "^5.0.0"
   },
