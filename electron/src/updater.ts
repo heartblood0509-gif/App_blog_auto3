@@ -11,10 +11,25 @@ export function setupAutoUpdater(mainWindow: BrowserWindow): void {
   autoUpdater.autoInstallOnAppQuit = true;
 
   autoUpdater.on("update-available", async (info) => {
+    // GitHub Releases에 작성한 변경사항을 그대로 가져옴 (Mac=문자열, Win=배열)
+    const rawNotes =
+      typeof info.releaseNotes === "string"
+        ? info.releaseNotes
+        : Array.isArray(info.releaseNotes)
+          ? info.releaseNotes.map((n) => n.note ?? "").join("\n\n")
+          : "";
+
+    // 마크다운/HTML 가볍게 정리해서 다이얼로그에 표시
+    const cleanedNotes = rawNotes
+      .replace(/<[^>]+>/g, "")
+      .replace(/^#+\s*/gm, "")
+      .trim();
+
     const result = await dialog.showMessageBox(mainWindow, {
       type: "info",
       title: "업데이트 available",
       message: `새 버전 ${info.version}이 있습니다. 다운로드하시겠습니까?`,
+      detail: cleanedNotes ? `변경사항:\n\n${cleanedNotes}` : undefined,
       buttons: ["다운로드", "나중에"],
       defaultId: 0,
     });
