@@ -19,8 +19,10 @@ from playwright.async_api import (
 from config import settings
 from bots.login_debug import capture_failure
 
-# PyInstaller 번들에서 Playwright 브라우저를 시스템 캐시에서 찾도록 설정
-if getattr(sys, "frozen", False):
+# PyInstaller 번들에서 Playwright 브라우저 경로 결정.
+# Electron이 PLAYWRIGHT_BROWSERS_PATH를 미리 주입했으면(번들 캐시) 그걸 그대로 사용,
+# 없을 때만 시스템 캐시로 폴백 (개발자가 직접 PyInstaller 빌드한 경우 등).
+if getattr(sys, "frozen", False) and not os.environ.get("PLAYWRIGHT_BROWSERS_PATH"):
     if sys.platform == "darwin":
         _pw_cache = Path.home() / "Library" / "Caches" / "ms-playwright"
     elif sys.platform == "win32":

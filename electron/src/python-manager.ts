@@ -68,12 +68,22 @@ export class PythonManager {
     const { cmd, args, cwd } = this.getCommand();
     console.log(`[Python] 서버 시작: ${cmd} ${args.join(" ")} (cwd: ${cwd})`);
 
+    // 프로덕션: 번들된 Playwright 브라우저 경로를 환경변수로 전달
+    const isDev = !app.isPackaged;
+    const bundledBrowsers = !isDev
+      ? path.join(process.resourcesPath, "ms-playwright")
+      : undefined;
+    if (bundledBrowsers) {
+      console.log(`[Python] PLAYWRIGHT_BROWSERS_PATH=${bundledBrowsers}`);
+    }
+
     this.process = spawn(cmd, args, {
       cwd,
       stdio: ["ignore", "pipe", "pipe"],
       env: {
         ...process.env,
         PYTHONUNBUFFERED: "1",
+        ...(bundledBrowsers ? { PLAYWRIGHT_BROWSERS_PATH: bundledBrowsers } : {}),
       },
     });
 

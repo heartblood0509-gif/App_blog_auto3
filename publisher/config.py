@@ -41,9 +41,12 @@ else:
     _ENV_FILE = str(Path(__file__).parent / ".env")
 
 # Playwright 브라우저 경로 설정
-_pw_cache = _get_playwright_cache_dir()
-if _pw_cache.exists():
-    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(_pw_cache)
+# Electron이 이미 PLAYWRIGHT_BROWSERS_PATH를 주입했으면 그대로 사용,
+# 아니면 OS별 시스템 캐시로 폴백.
+if not os.environ.get("PLAYWRIGHT_BROWSERS_PATH"):
+    _pw_cache = _get_playwright_cache_dir()
+    if _pw_cache.exists():
+        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(_pw_cache)
 
 
 class Settings(BaseSettings):

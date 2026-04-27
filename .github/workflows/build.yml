@@ -59,6 +59,20 @@ jobs:
         working-directory: publisher
         run: python -m playwright install chromium
 
+      # 사용자 PC에 Chromium이 없을 가능성을 없애기 위해 빌드에 함께 번들링
+      - name: Stage Playwright cache (Mac)
+        if: matrix.platform == 'mac'
+        run: |
+          mkdir -p electron/playwright-cache
+          cp -R ~/Library/Caches/ms-playwright/. electron/playwright-cache/
+
+      - name: Stage Playwright cache (Windows)
+        if: matrix.platform == 'win'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path electron/playwright-cache | Out-Null
+          Copy-Item -Recurse -Force "$env:LOCALAPPDATA\ms-playwright\*" electron/playwright-cache/
+
       - name: Build Python binary (PyInstaller)
         working-directory: publisher
         run: python -m PyInstaller BlogPublisher.spec --clean --noconfirm
