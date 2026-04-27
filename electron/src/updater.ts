@@ -4,11 +4,29 @@
  */
 
 import { autoUpdater } from "electron-updater";
-import { BrowserWindow, dialog } from "electron";
+import { BrowserWindow, dialog, ipcMain } from "electron";
 
 export function setupAutoUpdater(mainWindow: BrowserWindow): void {
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
+
+  // 렌더러에서 "재시작" 버튼을 누르면 즉시 설치 트리거
+  ipcMain.handle("updater:quit-and-install", () => {
+    autoUpdater.quitAndInstall();
+  });
+
+  // 다운로드 진행률 — OS 진행률 바 + 렌더러 모달 동시 갱신
+  autoUpdater.on("download-progress", (p) => {
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.setProgressBar(Math.max(0, Math.min(1, p.percent / 100)));
+      mainWindow.webContents.send("updater:progress", {
+        percent: p.percent,
+        transferred: p.transferred,
+        total: p.total,
+        bytesPerSecond: p.bytesPerSecond,
+      });
+    }
+  });
 
   autoUpdater.on("update-available", async (info) => {
     // GitHub Releases에 작성한 변경사항을 그대로 가져옴 (Mac=문자열, Win=배열)
@@ -40,6 +58,11 @@ export function setupAutoUpdater(mainWindow: BrowserWindow): void {
   });
 
   autoUpdater.on("update-downloaded", async () => {
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.setProgressBar(-1); // OS 진행률 제거
+      mainWindow.webContents.send("updater:downloaded");
+    }
+
     const result = await dialog.showMessageBox(mainWindow, {
       type: "info",
       title: "업데이트 준비 완료",
@@ -55,6 +78,10 @@ export function setupAutoUpdater(mainWindow: BrowserWindow): void {
 
   autoUpdater.on("error", (err) => {
     console.error("[Updater] 업데이트 확인 오류:", err.message);
+    if (!mainWindow.isDestroyed()) {
+      mainWindow.setProgressBar(-1);
+      mainWindow.webContents.send("updater:error", err.message);
+    }
   });
 
   // 앱 시작 후 업데이트 확인

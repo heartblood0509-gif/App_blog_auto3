@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { Header } from "@/components/layout/header";
 import { LicenseGuard } from "@/components/license-guard";
 import { MotionProvider } from "@/components/motion-provider";
+import { UpdateProgressDialog } from "@/components/update-progress-dialog";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -48,6 +49,7 @@ export default function RootLayout({
             </LicenseGuard>
           </MotionProvider>
           <Toaster position="bottom-right" richColors />
+          <UpdateProgressDialog />
         </ThemeProvider>
       </body>
     </html>
