@@ -1,0 +1,101 @@
+name: Build & Release
+
+on:
+  # 수동 실행 (GitHub 웹에서 Run workflow 버튼)
+  workflow_dispatch:
+
+  # v로 시작하는 태그 푸시 시 자동 실행 + GitHub Release 자동 생성
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: mac
+            artifact-pattern: "release/*.dmg"
+          - os: windows-latest
+            platform: win
+            artifact-pattern: "release/*.exe"
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Frontend 빌드
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build Next.js (standalone)
+        working-directory: frontend
+        run: npm run build
+
+      # Publisher (Python) 빌드
+      - name: Install publisher dependencies
+        working-directory: publisher
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Install Playwright Chromium
+        working-directory: publisher
+        run: python -m playwright install chromium
+
+      - name: Build Python binary (PyInstaller)
+        working-directory: publisher
+        run: python -m PyInstaller BlogPublisher.spec --clean --noconfirm
+
+      # Electron 빌드
+      - name: Install electron dependencies
+        working-directory: electron
+        run: npm ci
+
+      - name: Compile TypeScript
+        working-directory: electron
+        run: npx tsc
+
+      - name: Build Electron app (Mac)
+        if: matrix.platform == 'mac'
+        working-directory: electron
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --mac --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
+
+      - name: Build Electron app (Windows)
+        if: matrix.platform == 'win'
+        working-directory: electron
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win --publish ${{ startsWith(github.ref, 'refs/tags/v') && 'always' || 'never' }}
+
+      # 빌드 결과물 업로드 (수동 실행 시 다운로드 가능)
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BlogPublisher-${{ matrix.platform }}
+          path: |
+            release/*.dmg
+            release/*.exe
+            release/*.yml
+            release/*.blockmap
+          if-no-files-found: ignore
+          retention-days: 14
