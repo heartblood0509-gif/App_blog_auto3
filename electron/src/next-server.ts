@@ -98,9 +98,38 @@ function checkPort(port: number): Promise<boolean> {
   });
 }
 
-export function stopNextServer(): void {
-  if (nextProcess) {
-    nextProcess.kill("SIGTERM");
+export function stopNextServer(): Promise<void> {
+  return new Promise((resolve) => {
+    const proc = nextProcess;
     nextProcess = null;
-  }
+
+    if (!proc || proc.exitCode !== null) {
+      resolve();
+      return;
+    }
+
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+
+    proc.once("exit", done);
+
+    if (process.platform === "win32" && proc.pid) {
+      // Windows에서 SIGTERM은 자식 프로세스 트리를 못 죽인다 — taskkill /T 로 트리째 종료
+      spawn("taskkill", ["/pid", String(proc.pid), "/T", "/F"], { stdio: "ignore" });
+    } else {
+      proc.kill("SIGTERM");
+    }
+
+    // 5초 안전망
+    setTimeout(() => {
+      if (!settled && process.platform !== "win32") {
+        try { proc.kill("SIGKILL"); } catch {}
+      }
+      done();
+    }, 5000);
+  });
 }

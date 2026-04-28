@@ -8,14 +8,21 @@
 import { app, BrowserWindow, shell, ipcMain } from "electron";
 import * as path from "path";
 import { PythonManager } from "./python-manager";
-import { startNextServer, getNextPort } from "./next-server";
+import { startNextServer, stopNextServer, getNextPort } from "./next-server";
 import { generateFingerprint } from "./license-manager";
 import { setupAutoUpdater } from "./updater";
 
 let mainWindow: BrowserWindow | null = null;
 let pythonManager: PythonManager | null = null;
+let isQuitting = false;
 
 const isDev = !app.isPackaged;
+
+// 같은 앱이 두 번 실행되면 두 번째 인스턴스는 즉시 종료하고 기존 창에 포커스
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.exit(0);
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -79,6 +86,13 @@ app.whenReady().then(async () => {
     setupAutoUpdater(mainWindow);
   }
 
+  app.on("second-instance", () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -92,10 +106,22 @@ app.on("window-all-closed", () => {
   }
 });
 
-app.on("will-quit", async () => {
-  // Python 서버 종료
-  if (pythonManager) {
-    await pythonManager.stop();
+// before-quit 에서 자식 프로세스를 정리한다.
+// will-quit 은 비동기 핸들러를 기다려주지 않아 Next.js/Python 종료가 누락되었음.
+app.on("before-quit", async (e) => {
+  if (isQuitting) return;
+  e.preventDefault();
+  isQuitting = true;
+
+  console.log("[Electron] 종료 정리 시작...");
+  try {
+    await Promise.all([
+      pythonManager ? pythonManager.stop() : Promise.resolve(),
+      stopNextServer(),
+    ]);
+  } catch (err) {
+    console.error("[Electron] 정리 중 오류:", err);
   }
   console.log("[Electron] 앱 종료");
+  app.exit(0);
 });
