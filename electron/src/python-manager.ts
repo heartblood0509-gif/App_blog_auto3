@@ -113,30 +113,42 @@ export class PythonManager {
 
   /**
    * Python 서버 종료
+   * Windows에서는 taskkill /T 로 자식 프로세스(Playwright Chromium 등)까지 트리째 종료
    */
   async stop(): Promise<void> {
-    if (this.process) {
-      console.log("[Python] 서버 종료 중...");
-      this.process.kill("SIGTERM");
+    const proc = this.process;
+    if (!proc) return;
 
-      // 3초 대기 후 강제 종료
-      await new Promise<void>((resolve) => {
-        const timeout = setTimeout(() => {
-          if (this.process) {
-            this.process.kill("SIGKILL");
-          }
-          resolve();
-        }, 3000);
+    console.log("[Python] 서버 종료 중...");
+    this.process = null;
+    this.isRunning = false;
 
-        this.process?.on("exit", () => {
-          clearTimeout(timeout);
-          resolve();
-        });
-      });
+    if (proc.exitCode !== null) return;
 
-      this.process = null;
-      this.isRunning = false;
-    }
+    await new Promise<void>((resolve) => {
+      let settled = false;
+      const done = () => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      };
+
+      proc.once("exit", done);
+
+      if (process.platform === "win32" && proc.pid) {
+        spawn("taskkill", ["/pid", String(proc.pid), "/T", "/F"], { stdio: "ignore" });
+      } else {
+        proc.kill("SIGTERM");
+      }
+
+      // 5초 안전망 (POSIX는 SIGKILL 보강)
+      setTimeout(() => {
+        if (!settled && process.platform !== "win32") {
+          try { proc.kill("SIGKILL"); } catch {}
+        }
+        done();
+      }, 5000);
+    });
   }
 
   /**
