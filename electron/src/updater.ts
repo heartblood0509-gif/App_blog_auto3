@@ -49,9 +49,11 @@ export function setupAutoUpdater(mainWindow: BrowserWindow): void {
     // macOS는 코드 서명이 없어 Squirrel 자동 설치가 항상 실패함.
     // 다운로드 페이지를 브라우저로 열어 사용자가 dmg를 직접 받게 한다.
     if (process.platform === "darwin") {
+      const fileName = `BlogPublisher-${info.version}-arm64.dmg`;
+      const installGuide = `받으실 파일: ${fileName}\n(Mac은 한 번만 직접 받아서 설치하시면 됩니다)`;
       const detail = cleanedNotes
-        ? `변경사항:\n\n${cleanedNotes}\n\nMac은 한 번만 직접 받아서 설치하시면 됩니다.`
-        : "Mac은 한 번만 직접 받아서 설치하시면 됩니다.";
+        ? `변경사항:\n\n${cleanedNotes}\n\n${installGuide}`
+        : installGuide;
 
       const result = await dialog.showMessageBox(mainWindow, {
         type: "info",
