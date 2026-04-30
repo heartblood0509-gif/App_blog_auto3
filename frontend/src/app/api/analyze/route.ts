@@ -29,7 +29,7 @@ export async function POST(request: Request) {
         try {
           const response = await withRetry(() =>
             client.models.generateContentStream({
-              model: "gemini-2.5-pro",
+              model: "gemini-2.5-flash",
               contents: prompt,
             })
           );
