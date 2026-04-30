@@ -1,6 +1,6 @@
 {
   "name": "blog-publisher",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "BlogPublisher — AI 블로그 생성 + 네이버 자동 발행",
   "main": "dist/main.js",
   "scripts": {

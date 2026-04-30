@@ -4,7 +4,10 @@
  */
 
 import { autoUpdater } from "electron-updater";
-import { BrowserWindow, dialog, ipcMain } from "electron";
+import { BrowserWindow, dialog, ipcMain, shell } from "electron";
+
+const RELEASES_URL =
+  "https://github.com/heartblood0509-gif/App_blog_auto3/releases/latest";
 
 export function setupAutoUpdater(mainWindow: BrowserWindow): void {
   autoUpdater.autoDownload = false;
@@ -43,10 +46,33 @@ export function setupAutoUpdater(mainWindow: BrowserWindow): void {
       .replace(/^#+\s*/gm, "")
       .trim();
 
+    // macOS는 코드 서명이 없어 Squirrel 자동 설치가 항상 실패함.
+    // 다운로드 페이지를 브라우저로 열어 사용자가 dmg를 직접 받게 한다.
+    if (process.platform === "darwin") {
+      const detail = cleanedNotes
+        ? `변경사항:\n\n${cleanedNotes}\n\nMac은 한 번만 직접 받아서 설치하시면 됩니다.`
+        : "Mac은 한 번만 직접 받아서 설치하시면 됩니다.";
+
+      const result = await dialog.showMessageBox(mainWindow, {
+        type: "info",
+        title: "새 버전이 있어요",
+        message: `새 버전 ${info.version}이 있어요.`,
+        detail,
+        buttons: ["다운로드 페이지 열기", "나중에"],
+        defaultId: 0,
+      });
+
+      if (result.response === 0) {
+        shell.openExternal(RELEASES_URL);
+      }
+      return;
+    }
+
+    // Windows: 기존 자동 업데이트 흐름
     const result = await dialog.showMessageBox(mainWindow, {
       type: "info",
-      title: "업데이트 available",
-      message: `새 버전 ${info.version}이 있습니다. 다운로드하시겠습니까?`,
+      title: "새 버전이 있어요",
+      message: `새 버전 ${info.version}이 있어요. 다운로드하시겠습니까?`,
       detail: cleanedNotes ? `변경사항:\n\n${cleanedNotes}` : undefined,
       buttons: ["다운로드", "나중에"],
       defaultId: 0,
